@@ -114,7 +114,78 @@ async def onlineserietv(id,client):
         type = "Onlineserietv"
         if "tt" in id:
                 showname,date = await get_info_imdb(clean_id,ismovie,type,client)
+        else:async def search(showname,date,client,ismovie,episode,season):
+    cookies = {
+    'player_opt': 'fx',
+    }
+    params = {
+    's': showname,
+    'action': 'searchwp_live_search',
+    'swpengine': 'default',
+    'swpquery': showname,
+    'origin_id': '50141',
+    'searchwp_live_search_client_nonce': 'undefined',
+    }
+    response = await client.get(ForwardProxy + f"https://onlineserietv.{OST_DOMAIN}/wp-admin/admin-ajax.php", headers=headers, params=params, cookies=cookies, impersonate = "chrome124", proxies = proxies)
+    print(response)
+    soup = BeautifulSoup(response.text, 'lxml', parse_only=SoupStrainer('a'))
+    a_tags_with_href = soup.find_all("a", href=True)
+    for a_tag in a_tags_with_href:
+        href = a_tag.get("href")
+        if ismovie == 1:
+            if "film" in href:
+                response = await client.get(ForwardProxy + href, headers=headers, impersonate = "chrome124", proxies = proxies)
+                year_match = re.search(r'Anno: <i>(\d{4})</i>', response.text)
+                year = year_match.group(1) if year_match else None
+                if year == date:
+                    pattern = r'https://uprot\.net/fxf/[^\s"<>]+'
+                    match = re.search(pattern, response.text)
+                    if match:
+                        name = a_tag.text
+                        flexy_link = match.group(1)
+                        return flexy_link,name
+                    else:
+                        print("No flexy link found.")
+            else:
+                continue
+        elif ismovie == 0:
+            if "serietv" in href:
+                response = await client.get(ForwardProxy + href, headers=headers, impersonate = "chrome124", proxies = proxies)
+                print(response)
+                year_match = re.search(r'Anno: <i>(\d{4})</i>', response.text)
+                year = year_match.group(1) if year_match else None
+                if year == date:
+                    season = season.zfill(2)
+                    episode = episode.zfill(2)
+                    pattern = rf'{season}x{episode}.*?<a href=[\'"](https://uprot\.net/fxf/[^\'"]+)'
+                    match = re.search(pattern, response.text, re.DOTALL)
+                    if match:
+                        name = a_tag.text.replace("\t","").replace("\n","")
+                        flexy_link = match.group(1)
+                        return flexy_link,name
+                    else:
+                        print("No flexy link found.")
+            else:
+                continue 
+
+
+
+async def onlineserietv(id,client):
+    try:
+        general = await is_movie(id)
+        ismovie = general[0]
+        clean_id = general[1]
+        if ismovie == 0:
+            season = general[2]
+            episode = general[3]
+        elif ismovie == 1:
+            season = None
+            episode = None
+        type = "Onlineserietv"
+        if "tt" in id:
+                showname,date = await get_info_imdb(clean_id,ismovie,type,client)
         else:
+
             showname,date = get_info_tmdb(clean_id,ismovie,type)
         flexy_link,name = await search(showname,date,client,ismovie,episode,season)
         flexy_link = flexy_link.replace("fxf","fxe")
@@ -126,17 +197,81 @@ async def onlineserietv(id,client):
         print("MammaMia: Onlineserietv Failed",e)
         return None,None
     
+async def search(showname, date, client, ismovie, episode, season):
+    cookies = {
+        'player_opt': 'fx',
+    }
+    params = {
+        's': showname,
+        'action': 'searchwp_live_search',
+        'swpengine': 'default',
+        'swpquery': showname,
+        'origin_id': '50141',
+        'searchwp_live_search_client_nonce': 'undefined',
+    }
+    response = await client.get(ForwardProxy + f"https://onlineserietv.{OST_DOMAIN}/wp-admin/admin-ajax.php", headers=headers, params=params, cookies=cookies, impersonate="chrome124", proxies=proxies)
+    print(response)
+    soup = BeautifulSoup(response.text, 'lxml', parse_only=SoupStrainer('a'))
+    a_tags_with_href = soup.find_all("a", href=True)
+    for a_tag in a_tags_with_href:
+        href = a_tag.get("href")
+        if ismovie == 1:
+            if "film" in href:
+                response = await client.get(ForwardProxy + href, headers=headers, impersonate="chrome124", proxies=proxies)
+                year_match = re.search(r'Anno: <i>(\d{4})</i>', response.text)
+                year = year_match.group(1) if year_match else None
+                if year == date:
+                    pattern = r'https://uprot\.net/fxf/[^\s"<>]+'
+                    match = re.search(pattern, response.text)
+                    if match:
+                        name = a_tag.text
+                        flexy_link = match.group(0)
+                        return flexy_link, name
+                    else:
+                        print("No flexy link found.")
+        elif ismovie == 0:
+            if "serietv" in href:
+                response = await client.get(ForwardProxy + href, headers=headers, impersonate="chrome124", proxies=proxies)
+                print(response)
+                year_match = re.search(r'Anno: <i>(\d{4})</i>', response.text)
+                year = year_match.group(1) if year_match else None
+                if year == date:
+                    season = season.zfill(2)
+                    episode = episode.zfill(2)
+                    pattern = rf'{season}x{episode}.*?<a href=[\'"](https://uprot\.net/fxf/[^\'"]+)'
+                    match = re.search(pattern, response.text, re.DOTALL)
+                    if match:
+                        name = a_tag.text.replace("\t", "").replace("\n", "")
+                        flexy_link = match.group(1)
+                        return flexy_link, name
+                    else:
+                        print("No flexy link found.")
+    return None, None  # Assicurati di restituire sempre una coppia di valori, anche in caso di errore
 
-async def test_animeworld():
-    from curl_cffi.requests import AsyncSession
-    async with AsyncSession() as client:
-        test_id = "tt9165438:1:1"  # This is an example ID format
-        results = await onlineserietv(test_id, client)
-        print(results)
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_animeworld())
+async def onlineserietv(id, client):
+    try:
+        general = await is_movie(id)
+        ismovie, clean_id = general[0], general[1]
+        if ismovie == 0:
+            season, episode = general[2], general[3]
+        elif ismovie == 1:
+            season, episode = None, None
+        type = "Onlineserietv"
+        if "tt" in id:
+            showname, date = await get_info_imdb(clean_id, ismovie, type, client)
+        else:
+            showname, date = get_info_tmdb(clean_id, ismovie, type)
+        flexy_link, name = await search(showname, date, client, ismovie, episode, season)
+        if flexy_link is None or name is None:
+            raise Exception("Failed to find flexy link or name.")
+        flexy_link = flexy_link.replace("fxf", "fxe")
+        real_url = await client.head(ForwardProxy + flexy_link, headers=headers, impersonate="chrome124", proxies=proxies)
+        real_url = real_url.url
+        final_url = await eval_solver(real_url, client)
+        return final_url, name
+    except Exception as e:
+        print("MammaMia: Onlineserietv Failed", e)
+        return None, None
 
 
     #python3 -m Src.API.onlineserietv
